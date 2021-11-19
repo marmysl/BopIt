@@ -37,7 +37,9 @@ void loop() {
   if(curr_millis - prev_millis > interval) {
     int pot_val = analogRead(pot_pin);
     lcd1.setCursor(0,0);
-    lcd1.print(String(pot_val));    
+    lcd1.print("read");
+    lcd1.setCursor(1,0);
+    lcd1.print(String(pot_val));
   }
    
 }
