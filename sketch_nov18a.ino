@@ -66,11 +66,11 @@ void PotTest(){
 
 void loop() {
   // put your main code here, to run repeatedly: 
-   //lcd1.print("Hello World");
-   //music.play("1.wav");
+  lcd1.print("Hello World");
+  //music.play("1.wav");
   //TiltSwitchTest();
   //delay(100);
   //PhotoResistorTest();
-  PotTest();
-  delay(250);
+  //PotTest();
+  //delay(250);
 }
