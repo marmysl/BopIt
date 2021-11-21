@@ -24,31 +24,48 @@ long prev_millis = 0;
 void TiltSwitchTest() {
   int digitalVal = digitalRead(2);
   if (digitalVal == 0) {
+    lcd1.setCursor(0,0);
+    lcd1.print("read");
+    lcd1.setCursor(0,1);
+    lcd1.print("        ");
+    lcd1.setCursor(0,1);
     lcd1.print("Tilted");
   } else {
+    lcd1.setCursor(0,0);
+    lcd1.print("read");
+    lcd1.setCursor(0,1);
+    lcd1.print("        ");
+    lcd1.setCursor(0,1);
     lcd1.print("Not tilted");
   }
 }
 
 void PhotoResistorTest() {
-  // read from photoresistor
-  sensorVal = analogRead(A2);
-  lcd1.setCursor(1,0);
-  lcd1.print(sensorVal);
+ unsigned long curr_millis = millis();
+  int interval = 1000;
+
+  if(curr_millis - prev_millis > interval) {
+  int pr_val = analogRead(A2);
+  lcd1.setCursor(0,0);
+  lcd1.print("read");
+  lcd1.setCursor(0,1);
+  lcd1.print("        ");
+    lcd1.setCursor(0,1);
+  lcd1.print(String(pr_val));
+  
+  }
 }
 
 void setup() {
     // LCD
     lcd1.init();
     lcd1.backlight();
-    lcd1.clear();
-    lcd1.setCursor(0,0);
-
+    
     pinMode(pot_pin, INPUT);
 
-    music.speakerPin = 9; //Auido out on pin 9
+    music.speakerPin = 9; // Audio out on pin 9
     SD.begin(SD_ChipSelectPin);
-    music.setVolume(7);    //   0 to 7. Set volume level
+    music.setVolume(4);    // 0 to 7. Set volume level
 }
 
 void PotTest(){
@@ -61,16 +78,14 @@ void PotTest(){
     lcd1.print("read");
     lcd1.setCursor(0,1);
     lcd1.print(String(pot_val)); 
+    // goes from 88 to 1023
+    // clear
   }
 }
 
 void loop() {
-  // put your main code here, to run repeatedly: 
-  lcd1.print("Hello World");
   //music.play("1.wav");
-  //TiltSwitchTest();
-  //delay(100);
+  TiltSwitchTest();
   //PhotoResistorTest();
   //PotTest();
-  //delay(250);
 }
