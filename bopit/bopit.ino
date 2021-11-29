@@ -1,26 +1,12 @@
-// Include library code
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
-#include <pcmRF.h>
-#include <pcmConfig.h>
-#include <TMRpcm.h>
-#include "SD.h" //Lib to read SD card
-#include "TMRpcm.h" //Lib to play auido
-#include "SPI.h" //SPI lib for SD card
-
-// Initialize with address 0x27, size 16x2 LCD
 LiquidCrystal_I2C lcd1(0x27,16,2);
-
-// Create object called "music" to control audio
-TMRpcm music; 
-
 
 /*
  * ===============================================
- * cONSTANTS / GLOBAL VARS
+ * CONSTANTS / GLOBAL VARS
  * ===============================================
  */
-#define SD_ChipSelectPin 4 //Chip select is pin number 4
 #define pot_pin A1
 #define tilt_pin 2
 #define ptr_pin A2
@@ -30,54 +16,7 @@ int fail_time = 5000; // Start with 5 seconds
 unsigned long prev_millis = 0;
 int next_act = 0;
 int score = 0;
-int prev_pot = -1;
-
-
-/*
- * ===============================================
- * TILT SWITCH
- * ===============================================
- */
-bool ReadTilt() {
-  int val = digitalRead(tilt_pin);
-  return (val == HIGH);
-}
-
-/*
- * ===============================================
- * PHOTO-RESISTOR
- * ===============================================
- */
-bool ReadPTR() {
-  int ptr_thresh = 100; // Threshold for "covered"
-  int val = analogRead(ptr_pin);
-  return (val > ptr_thresh); // Might need to flip LT/GT
-}
-
-/*
- * ===============================================
- * POTENTIOMETER
- * ===============================================
- */
-bool ReadPot(){
-  // goes from 88 to 1023
-  int val = analogRead(pot_pin);
-  int pot_low = 100, pot_high = 950;
-
-  // LOW = 0 -> 1 -> 2 = HIGH
-  if (val < pot_low) val = 0;
-  else if (val < pot_high) val = 1;
-  else val = 2;
-
-  if (val == prev_pot || val == 1) {
-    // No change or in the middle
-    return false;
-  } else {
-    // Changed sides
-    prev_pot = val;
-    return true;
-  }
-}
+bool prev_pot = false;
 
 /*
  * ===============================================
@@ -90,6 +29,55 @@ void printScore() {
     lcd1.setCursor(7,1);
     lcd1.print(String(score));
 }
+void wait(int duration) {
+  unsigned long cmil = millis();
+  unsigned long pmil = cmil;
+  while (cmil - pmil < duration) {
+    cmil = millis();
+  }
+}
+
+/*
+ * ===============================================
+ * TILT SWITCH
+ * ===============================================
+ */
+bool ReadTilt() {
+  int val = digitalRead(tilt_pin);
+  return (val == LOW);
+}
+
+/*
+ * ===============================================
+ * PHOTO-RESISTOR
+ * ===============================================
+ */
+bool ReadPTR() {
+  int ptr_thresh = 300; // Threshold for "covered"
+  int val = analogRead(ptr_pin);
+  //lcd1.setCursor(0,1);
+  //lcd1.print("    ");
+  //lcd1.print(String(val));
+  return (val < ptr_thresh);
+}
+
+/*
+ * ===============================================
+ * POTENTIOMETER
+ * ===============================================
+ */
+bool ReadPot(){
+  // goes from 88 to 1023
+  bool val = analogRead(pot_pin) < 470;
+  
+  if (val == prev_pot) {
+    // No change
+    return false;
+  } else {
+    // Changed sides
+    return true;
+  }
+}
 
 /*
  * ===============================================
@@ -97,40 +85,25 @@ void printScore() {
  * ===============================================
  */
 void setup() {
-  // PIN SETUP
+  // put your setup code here, to run once:
+  tone(spk_pin,440,500);
+
   pinMode(pot_pin, INPUT);
   pinMode(ptr_pin, INPUT);
   pinMode(tilt_pin, INPUT);
   pinMode(spk_pin, OUTPUT); // Probably doesn't matter?
-  digitalWrite(spk_pin, LOW); // Also doesn't matter?
+  //digitalWrite(spk_pin, LOW); // Also doesn't matter?
 
-  // Variables Setup
   score = 0;
   next_act = 0;
-  randomSeed(analogRead(0)); // Read noise for random seed
+  prev_pot = analogRead(pot_pin) < 470;
+  randomSeed(analogRead(A0)); // Read noise for random seed
   next_act = random(3); // Random # from 0:2
-  ReadPot(); // Initializes prev_pot
+  //next_act = 1;
   
-  // LCD
   lcd1.init();
   lcd1.backlight();
-  
-  // SD Card
-  if (!SD.begin(SD_ChipSelectPin)) {
-    // Only ^^ is needed, rest is just to display if error
-    for (int i=5;i>0;i--) {
-      lcd1.setCursor(0,0);
-      lcd1.print("SD FAILED");
-      lcd1.setCursor(0,1);
-      lcd1.print(String(i));
-      delay(1000);
-    }
-    lcd1.clear();
-  }
-  
-  // Music setup
-  music.speakerPin = spk_pin; // Audio out on pin 9
-  music.setVolume(4);    // 0 to 7. Set volume level
+  tone(spk_pin,880,250);
 }
 
 /*
@@ -139,48 +112,70 @@ void setup() {
  * ===============================================
  */
 void loop() {
-  next_act = random(3); // Random # from 0:2
+  next_act = random(3);
+  wait(1000);
   if (next_act == 0) {
     // TILT SWITCH
-    music.play("tilt.wav");
+    lcd1.setCursor(0,0);
+    lcd1.print("TILT");
+    tone(spk_pin,440,500);
   } else if (next_act == 1) {
     // PHOTO RESISTOR
-    music.play("ptr.wav");
+    lcd1.setCursor(0,0);
+    lcd1.print("BONK");
+    tone(spk_pin,880,500);
   } else {
     // POTENTIOMETER
-    music.play("pot.wav");
+    lcd1.setCursor(0,0);
+    lcd1.print("OPEN");
+    tone(spk_pin,220,500);
   }
 
+  /*
+   * ===============================================
+   * MAIN GAME
+   * ===============================================
+   */
   unsigned long curr_millis = millis();
   prev_millis = curr_millis;
 
   bool act_done = false;
   bool act_wrong = false;
+  prev_pot = analogRead(pot_pin) < 470;
   while (curr_millis - prev_millis < fail_time) {
     curr_millis = millis();
     bool tilted = ReadTilt();
     bool covered = ReadPTR();
     bool pot_change = ReadPot();
 
+    
+    lcd1.setCursor(0,1);
+    lcd1.print(String(tilted));
+
     if (next_act == 0) {
       // TILT SWITCH
       act_done = tilted;
-      act_wrong = covered || pot_change;
-    } 
-    if (next_act == 1) {
+      //act_wrong = covered || pot_change;
+    } else if (next_act == 1) {
       // PHOTO RESISTOR
       act_done = covered;
-      act_wrong = tilted || pot_change;
+      //act_wrong = tilted || pot_change;
     } else {
       // POTENTIOMETER
       act_done = pot_change;
-      act_wrong = tilted || covered;
+      //act_wrong = tilted || covered;
     }
-    
+
+    act_wrong = false;
     if (act_done || act_wrong)
       break;    
   }
 
+  /*
+   * ===============================================
+   * Player Failed
+   * ===============================================
+   */
   if (act_wrong || !act_done) {
     // Player has LOST (WRONG ACTION)
     
@@ -197,16 +192,20 @@ void loop() {
       else
         lcd1.print("OUT OF TIME!    ");
         
-      delay(1500);
+      wait(1500);
       
       // Display Reset suggestion
       lcd1.setCursor(0,0);
       lcd1.print("Reset to play   ");
-      delay(1500);
+      wait(1500);
     }
   }
     
-  // Player correctly acted
+  /*
+   * ===============================================
+   * Player Success
+   * ===============================================
+   */
   score++;
   fail_time = fail_time * 0.90; // Speed up the game
 
@@ -214,12 +213,12 @@ void loop() {
   lcd1.setCursor(0,0);
   lcd1.print("--- CORRECT ----");
   for (int i=0; i < 6; i++) {
-    lcd1.scrollDisplayLeft();
-    delay(100);
+    //lcd1.scrollDisplayLeft();
+    wait(100);
   }
   for (int i=0; i < 6; i++) {
-    lcd1.scrollDisplayRight();
-    delay(100);
+    //lcd1.scrollDisplayRight();
+    wait(100);
   }
-    
+  lcd1.clear();
 }
