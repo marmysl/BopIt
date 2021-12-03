@@ -29,6 +29,7 @@ void printScore() {
     lcd1.setCursor(7,1);
     lcd1.print(String(score));
 }
+
 void wait(int duration) {
   unsigned long cmil = millis();
   unsigned long pmil = cmil;
@@ -55,9 +56,6 @@ bool ReadTilt() {
 bool ReadPTR() {
   int ptr_thresh = 300; // Threshold for "covered"
   int val = analogRead(ptr_pin);
-  //lcd1.setCursor(0,1);
-  //lcd1.print("    ");
-  //lcd1.print(String(val));
   return (val < ptr_thresh);
 }
 
@@ -86,7 +84,6 @@ bool ReadPot(){
  */
 void setup() {
   // put your setup code here, to run once:
-  tone(spk_pin,440,500);
 
   pinMode(pot_pin, INPUT);
   pinMode(ptr_pin, INPUT);
@@ -103,7 +100,6 @@ void setup() {
   
   lcd1.init();
   lcd1.backlight();
-  tone(spk_pin,880,250);
 }
 
 /*
@@ -113,22 +109,22 @@ void setup() {
  */
 void loop() {
   next_act = random(3);
-  wait(1000);
+  wait(750);
   if (next_act == 0) {
     // TILT SWITCH
     lcd1.setCursor(0,0);
     lcd1.print("TILT");
-    tone(spk_pin,440,500);
+    tone(spk_pin,440,300);
   } else if (next_act == 1) {
     // PHOTO RESISTOR
     lcd1.setCursor(0,0);
     lcd1.print("BONK");
-    tone(spk_pin,880,500);
+    tone(spk_pin,880,300);
   } else {
     // POTENTIOMETER
     lcd1.setCursor(0,0);
     lcd1.print("OPEN");
-    tone(spk_pin,220,500);
+    tone(spk_pin,220,300);
   }
 
   /*
@@ -148,25 +144,20 @@ void loop() {
     bool covered = ReadPTR();
     bool pot_change = ReadPot();
 
-    
-    lcd1.setCursor(0,1);
-    lcd1.print(String(tilted));
-
     if (next_act == 0) {
       // TILT SWITCH
       act_done = tilted;
-      //act_wrong = covered || pot_change;
+      act_wrong = pot_change;
     } else if (next_act == 1) {
       // PHOTO RESISTOR
       act_done = covered;
-      //act_wrong = tilted || pot_change;
+      act_wrong = pot_change;
     } else {
       // POTENTIOMETER
       act_done = pot_change;
-      //act_wrong = tilted || covered;
+      //act_wrong = tilted;
     }
 
-    act_wrong = false;
     if (act_done || act_wrong)
       break;    
   }
@@ -183,6 +174,7 @@ void loop() {
     lcd1.clear();
     printScore();
 
+    bool first_time = true;
     // Stop game / Dead loop
     while(true) {
       // Inform user failed
@@ -191,12 +183,23 @@ void loop() {
         lcd1.print("WRONG ACTION!   ");
       else
         lcd1.print("OUT OF TIME!    ");
-        
-      wait(1500);
-      
+
+      if (first_time) {
+        tone(spk_pin,294,250);
+        wait(500);
+        tone(spk_pin,278,250);
+        wait(500);
+        tone(spk_pin,262,250);
+        wait(500);
+        tone(spk_pin,247,750);
+
+        first_time = false;
+      } else {
+        wait(1500);
+      }
       // Display Reset suggestion
       lcd1.setCursor(0,0);
-      lcd1.print("Reset to play   ");
+      lcd1.print("Push to play    ");
       wait(1500);
     }
   }
@@ -209,15 +212,34 @@ void loop() {
   score++;
   fail_time = fail_time * 0.90; // Speed up the game
 
+  // Congratulate winner!!
+  if (score >= 99) {
+    lcd1.clear();
+    while (true) {
+      lcd1.setCursor(0,0);
+      lcd1.print("--- YOU  WIN ---");
+      for (int i=0; i < 6; i++) {
+        lcd1.scrollDisplayLeft();
+        wait(100);
+      }
+      for (int i=0; i < 6; i++) {
+        lcd1.scrollDisplayRight();
+        wait(100);
+      }
+      lcd1.setCursor(0,1);
+      lcd1.print("Reset to play!");
+    }
+  }
+  
   // Show on LCD for correct input
   lcd1.setCursor(0,0);
   lcd1.print("--- CORRECT ----");
   for (int i=0; i < 6; i++) {
-    //lcd1.scrollDisplayLeft();
+    lcd1.scrollDisplayLeft();
     wait(100);
   }
   for (int i=0; i < 6; i++) {
-    //lcd1.scrollDisplayRight();
+    lcd1.scrollDisplayRight();
     wait(100);
   }
   lcd1.clear();
